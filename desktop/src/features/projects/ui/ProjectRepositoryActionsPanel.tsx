@@ -531,6 +531,7 @@ export function ProjectRepositoryActionsPanel({
                     <ProjectWorkItemContextDetails
                       issue={selectedIssue}
                       pullRequest={selectedPullRequest}
+                      repository={repository}
                     />
                     {!selectedIssue &&
                     !selectedPullRequest &&

@@ -204,6 +204,7 @@ test("PR creator/owner can toggle draft, request reviews, and approve", async ({
   ).toBeVisible();
   await expect(page.getByTestId("project-context-chat-agent")).toBeVisible();
   await expect(page.getByTestId("project-context-discuss")).toBeVisible();
+  await expect(page.getByTestId("project-context-branch")).toContainText("→");
   await expect(page.getByTestId("project-context-review-summary")).toHaveCount(
     0,
   );
@@ -264,6 +265,12 @@ test("PR creator/owner can toggle draft, request reviews, and approve", async ({
   await expect(page.getByText("Requested a review from bob")).toBeVisible({
     timeout: 10_000,
   });
+  await expect(page.getByTestId("project-review-summary")).toHaveCount(0);
+  await expect(
+    page
+      .getByTestId("project-reviewer-decision")
+      .filter({ hasText: "Awaiting review from bob" }),
+  ).toHaveCount(1);
 
   await waitForAnimations(page);
   await page.screenshot({
@@ -287,9 +294,12 @@ test("PR creator/owner can toggle draft, request reviews, and approve", async ({
       .getByTestId("project-pull-request-timeline-row")
       .filter({ hasText: "requested changes" }),
   ).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByTestId("project-review-summary")).toHaveText(
-    "Changes requested",
-  );
+  await expect(page.getByTestId("project-review-summary")).toHaveCount(0);
+  await expect(
+    page
+      .getByTestId("project-reviewer-decision")
+      .filter({ hasText: "Changes requested" }),
+  ).toHaveCount(1);
   const changeRequestEvent = await page.evaluate(() =>
     window.__BUZZ_E2E_SIGNED_EVENTS__
       ?.filter(
@@ -368,10 +378,12 @@ test("PR creator/owner can toggle draft, request reviews, and approve", async ({
   await expect(
     page.getByRole("button", { name: "Approve", exact: true }),
   ).toHaveCount(0);
-  await expect(page.getByTestId("project-review-summary")).toHaveText(
-    "Awaiting review",
-  );
-  await expect(page.getByText("Approved", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("project-review-summary")).toHaveCount(0);
+  await expect(
+    page
+      .getByTestId("project-reviewer-decision")
+      .filter({ hasText: "Approved by" }),
+  ).toHaveCount(1);
   const approvalEvent = await page.evaluate(() =>
     window.__BUZZ_E2E_SIGNED_EVENTS__
       ?.filter(

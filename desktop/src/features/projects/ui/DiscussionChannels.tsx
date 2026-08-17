@@ -273,7 +273,7 @@ const NAME_LIST_MAX = 3;
 function DiscussionMessagePreview({ content }: { content: string }) {
   return (
     <Markdown
-      className="inbox-preview-markdown mt-0.5 text-inherit leading-4"
+      className="inbox-preview-markdown mt-0.5 text-inherit leading-6"
       content={discussionSnippet(content)}
       interactive={false}
     />

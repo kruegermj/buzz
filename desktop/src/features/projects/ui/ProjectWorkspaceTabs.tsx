@@ -566,6 +566,7 @@ export function WorkspaceTabs({
                 files={files}
                 isLoading={displayedSnapshotLoading}
                 onContextChange={onFilesContextChange}
+                onOpenCommit={onSelectedCommitHashChange}
                 profiles={profiles}
                 snapshot={displayedSnapshot}
                 unavailableMessage={

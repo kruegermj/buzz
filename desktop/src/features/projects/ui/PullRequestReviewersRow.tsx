@@ -291,7 +291,7 @@ export function PullRequestReviewersRow({
     <ProjectDetailMetaRow icon={Users} label="Reviewers">
       <div className="grid min-w-0 gap-1">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          {showSummary ? (
+          {showSummary && displayedDecisionActors.length === 0 ? (
             <span className="font-medium" data-testid={summaryTestId}>
               {reviewSummary}
             </span>
@@ -317,32 +317,27 @@ export function PullRequestReviewersRow({
                 ? History
                 : null;
           const decisionLabel = hasApproved
-            ? "Approved"
+            ? `Approved by ${label}`
             : hasRequestedChanges
-              ? "Changes requested"
+              ? `Changes requested by ${label}`
               : needsRereview
-                ? "Re-review needed"
-                : "Pending";
+                ? `Re-review needed from ${label}`
+                : `Awaiting review from ${label}`;
           return (
             <span
-              className="flex min-w-0 items-center gap-2"
+              className={cn(
+                "flex min-w-0 items-center gap-1 text-sm",
+                hasApproved && "text-green-600 dark:text-green-400",
+                hasRequestedChanges && "text-amber-600 dark:text-amber-400",
+                !hasApproved && !hasRequestedChanges && "text-muted-foreground",
+              )}
               data-testid="project-reviewer-decision"
               key={pubkey}
             >
-              <span className="truncate text-sm text-foreground">{label}</span>
-              <span
-                className={cn(
-                  "inline-flex shrink-0 items-center gap-0.5 text-sm",
-                  hasApproved && "text-green-600 dark:text-green-400",
-                  hasRequestedChanges && "text-amber-600 dark:text-amber-400",
-                  !hasApproved &&
-                    !hasRequestedChanges &&
-                    "text-muted-foreground",
-                )}
-              >
-                {DecisionIcon ? <DecisionIcon className="h-3.5 w-3.5" /> : null}
-                {decisionLabel}
-              </span>
+              {DecisionIcon ? (
+                <DecisionIcon className="h-3.5 w-3.5 shrink-0" />
+              ) : null}
+              <span className="truncate">{decisionLabel}</span>
             </span>
           );
         })}

@@ -311,13 +311,13 @@ export function ProjectEntityListRow({
       </span>
       {count != null ? (
         <span
-          className="grid w-12 shrink-0 grid-cols-[0.875rem_1fr] items-center gap-1 text-xs text-muted-foreground/65"
+          className="flex w-12 shrink-0 items-center gap-1 text-xs text-muted-foreground/65"
           data-projects-text-priority="secondary"
           data-testid={countTestId}
           title={countTitle}
         >
           <MessageSquare className="h-3.5 w-3.5" />
-          <span className="text-right tabular-nums">
+          <span className="tabular-nums">
             {count}
             {countSuffix}
           </span>

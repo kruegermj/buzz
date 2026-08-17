@@ -40,7 +40,19 @@ test("projects activity overview screenshot", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await page.getByTestId("open-projects-view").click();
   await expect(page.getByTestId("projects-page-tabs")).toBeVisible();
-  await expect(page.getByTestId("projects-page-header")).toBeVisible();
+  const activityHeader = page.getByTestId("projects-page-header");
+  const relayIcon = page.getByTestId("projects-activity-relay-icon");
+  await expect(activityHeader).toBeVisible();
+  await expect(relayIcon).toBeVisible();
+  const [activityHeaderBox, relayIconBox] = await Promise.all([
+    activityHeader.boundingBox(),
+    relayIcon.boundingBox(),
+  ]);
+  expect(activityHeaderBox).not.toBeNull();
+  expect(relayIconBox).not.toBeNull();
+  expect((relayIconBox?.y ?? 0) + (relayIconBox?.height ?? 0)).toBeLessThan(
+    activityHeaderBox?.y ?? 0,
+  );
   await expect(page.getByTestId("projects-activity-search")).toBeVisible();
   await expect(page.getByTestId("projects-activity-intro")).toContainText(
     "Projects Activity",
@@ -785,6 +797,13 @@ test("projects v3 workspace screenshot states", async ({ page }) => {
   await expect(
     workspacePanel.getByTestId("project-repository-entry-icon").first(),
   ).toHaveCSS("border-radius", "8px");
+  const repositoryEntryCell = workspacePanel
+    .getByTestId("project-repository-entry-row")
+    .first()
+    .locator("td")
+    .first();
+  await expect(repositoryEntryCell).toHaveCSS("border-radius", "0px");
+  await expect(repositoryEntryCell).toHaveCSS("border-bottom-width", "0px");
   await chatPanelTab.click();
   await expect(agentContext).toContainText("Files");
   await expect(
