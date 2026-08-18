@@ -1122,9 +1122,24 @@ test("projects v3 work-item list metadata", async ({ page }) => {
   );
 
   await page.getByTestId("projects-section-projects").click();
-  await expectSinglePrimaryTextColumn(
-    page.getByTestId(/^project-row-/).first(),
+  await expect(page.getByTestId("projects-list-header")).toHaveCSS(
+    "border-left-width",
+    "0px",
   );
+  const projectRow = page.getByTestId(/^project-row-/).first();
+  await expectSinglePrimaryTextColumn(projectRow);
+  const [projectTitleBox, repositoryCountBox] = await Promise.all([
+    projectRow.locator('[data-projects-text-priority="primary"]').boundingBox(),
+    projectRow.getByTestId("projects-row-context").boundingBox(),
+  ]);
+  expect(projectTitleBox).not.toBeNull();
+  expect(repositoryCountBox).not.toBeNull();
+  expect(
+    Math.round(
+      (repositoryCountBox?.x ?? 0) -
+        ((projectTitleBox?.x ?? 0) + (projectTitleBox?.width ?? 0)),
+    ),
+  ).toBe(12);
 
   await page.getByTestId("projects-section-repositories").click();
   await expectSinglePrimaryTextColumn(

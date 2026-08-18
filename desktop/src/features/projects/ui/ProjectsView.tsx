@@ -31,7 +31,6 @@ import {
 } from "@/features/projects/lib/projectRepoHost";
 import { ProjectsActivityFeed } from "@/features/projects/ui/ProjectsActivityFeed";
 import { ProjectsChannelsList } from "@/features/projects/ui/ProjectsChannelsList";
-import { ProjectsOverviewChatToggle } from "@/features/projects/ui/ProjectsOverviewChatToggle";
 import {
   ProjectsOverviewContextSheet,
   ProjectsOverviewNarrowContextToggle,
@@ -41,6 +40,7 @@ import {
   ProjectsOverviewContextPanel,
   ProjectsOverviewPanel,
 } from "@/features/projects/ui/ProjectsOverviewPanel";
+import { ProjectsOverviewChromeActions } from "@/features/projects/ui/ProjectsOverviewChromeActions";
 import { ProjectContextRail } from "@/features/projects/ui/ProjectContextRail";
 import {
   openAppSearch,
@@ -705,22 +705,31 @@ export function ProjectsView() {
       ) ?? [],
     summaries: activitySummariesQuery.data,
   };
-  const overviewDetached = overviewPanelOpen && !isNarrowProjectsLayout;
   const contextOpen = isNarrowProjectsLayout
     ? narrowContextOpen
     : overviewPanelOpen;
-  const chromeActions = (
-    <>
-      <ProjectsOverviewNarrowContextToggle
-        onToggle={() =>
-          isNarrowProjectsLayout
-            ? setNarrowContextOpen((open) => !open)
-            : setOverviewPanelOpen((open) => !open)
-        }
-        open={contextOpen}
-        ref={contextToggleRef}
-      />
-    </>
+  const overviewChatOpen =
+    selectionAgentContext !== null && !isNarrowProjectsLayout;
+  const overviewContextOpen = overviewPanelOpen && !isNarrowProjectsLayout;
+  const overviewDetached = overviewContextOpen || overviewChatOpen;
+  const chromeActions = isNarrowProjectsLayout ? (
+    <ProjectsOverviewNarrowContextToggle
+      onToggle={() => setNarrowContextOpen((open) => !open)}
+      open={contextOpen}
+      ref={contextToggleRef}
+    />
+  ) : (
+    <ProjectsOverviewChromeActions
+      chatOpen={overviewChatOpen}
+      contextOpen={overviewPanelOpen}
+      onToggleChat={() =>
+        setSelectionAgentContext((context) =>
+          context ? null : overviewAgentContext,
+        )
+      }
+      onToggleContext={() => setOverviewPanelOpen((open) => !open)}
+      sectionTitle={projectsSectionTitle(filter)}
+    />
   );
 
   return (
@@ -842,15 +851,6 @@ export function ProjectsView() {
                           onFilterChange={handleFilterChange}
                         />
                       </div>
-                      <ProjectsOverviewChatToggle
-                        active={selectionAgentContext !== null}
-                        onToggle={() =>
-                          setSelectionAgentContext((context) =>
-                            context ? null : overviewAgentContext,
-                          )
-                        }
-                        sectionTitle={projectsSectionTitle(filter)}
-                      />
                     </div>
                     <div
                       className={
@@ -933,20 +933,29 @@ export function ProjectsView() {
                 </div>
               </div>
             </div>
-            {selectionAgentContext && !isNarrowProjectsLayout ? (
-              <ProjectAgentChatPanel
-                canResetWidth={overviewAgentPanelWidth.canReset}
-                context={selectionAgentContext}
-                onClose={() => setSelectionAgentContext(null)}
-                onResetWidth={overviewAgentPanelWidth.onResetWidth}
-                onResizeStart={overviewAgentPanelWidth.onResizeStart}
-                widthPx={overviewAgentPanelWidth.widthPx}
-              />
-            ) : null}
           </div>
         </div>
         <ProjectContextRail
-          open={overviewDetached}
+          open={overviewChatOpen}
+          panelWidthPx={overviewAgentPanelWidth.widthPx}
+          resizing={overviewAgentPanelWidth.isResizing}
+          testId="projects-overview-agent-rail"
+        >
+          {selectionAgentContext ? (
+            <ProjectAgentChatPanel
+              canResetWidth={overviewAgentPanelWidth.canReset}
+              constrainToAvailableSpace={false}
+              context={selectionAgentContext}
+              detached
+              onClose={() => setSelectionAgentContext(null)}
+              onResetWidth={overviewAgentPanelWidth.onResetWidth}
+              onResizeStart={overviewAgentPanelWidth.onResizeStart}
+              widthPx={overviewAgentPanelWidth.widthPx}
+            />
+          ) : null}
+        </ProjectContextRail>
+        <ProjectContextRail
+          open={overviewContextOpen}
           panelWidthPx={PROJECT_CONTEXT_PANEL_DEFAULT_WIDTH_PX}
           testId="projects-overview-context-rail"
         >

@@ -884,7 +884,10 @@ export function RepositoryFilesPanel({
             >
               <th className="px-4 py-3 text-left font-normal" colSpan={3}>
                 {latestCommit ? (
-                  <div className="flex min-w-0 items-center justify-between gap-3 text-sm">
+                  <div
+                    className="flex min-w-0 items-center justify-between gap-3 text-xs"
+                    data-testid="project-repository-latest-commit-summary"
+                  >
                     <div className="flex min-w-0 items-center gap-2">
                       <UserAvatar
                         accent={latestCommitProfile?.isAgent === true}
@@ -950,7 +953,7 @@ export function RepositoryFilesPanel({
                   }
                   tabIndex={0}
                 >
-                  <td className="min-w-52 px-3 py-2 align-middle transition-colors group-hover/repository-entry:bg-muted/35 group-focus-visible/repository-entry:bg-muted/35">
+                  <td className="min-w-52 px-3 py-2 align-middle transition-colors group-hover/repository-entry:rounded-l-md group-hover/repository-entry:bg-muted/35 group-focus-visible/repository-entry:rounded-l-md group-focus-visible/repository-entry:bg-muted/35">
                     <div className="flex min-w-0 items-center gap-2">
                       <RepositoryEntryIcon entry={entry} />
                       <span className="truncate font-medium text-foreground">
@@ -964,7 +967,7 @@ export function RepositoryFilesPanel({
                       profiles={profiles}
                     />
                   </td>
-                  <td className="w-36 whitespace-nowrap p-2 text-right align-middle text-muted-foreground transition-colors group-hover/repository-entry:bg-muted/35 group-focus-visible/repository-entry:bg-muted/35">
+                  <td className="w-36 whitespace-nowrap p-2 text-right align-middle text-muted-foreground transition-colors group-hover/repository-entry:rounded-r-md group-hover/repository-entry:bg-muted/35 group-focus-visible/repository-entry:rounded-r-md group-focus-visible/repository-entry:bg-muted/35">
                     {latestCommit ? (
                       <time
                         dateTime={new Date(

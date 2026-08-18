@@ -266,11 +266,20 @@ test("PR creator/owner can toggle draft, request reviews, and approve", async ({
     timeout: 10_000,
   });
   await expect(page.getByTestId("project-review-summary")).toHaveCount(0);
+  const reviewerDecision = page
+    .getByTestId("project-reviewer-decision")
+    .filter({ hasText: "bob" });
   await expect(
-    page
-      .getByTestId("project-reviewer-decision")
-      .filter({ hasText: "Awaiting review from bob" }),
-  ).toHaveCount(1);
+    reviewerDecision.getByTestId("project-reviewer-name"),
+  ).toHaveText("bob");
+  await expect(reviewerDecision).toHaveAttribute(
+    "title",
+    "Awaiting review from bob",
+  );
+  await expect(page.getByTestId("project-reviewers-content")).toHaveCSS(
+    "flex-wrap",
+    "nowrap",
+  );
 
   await waitForAnimations(page);
   await page.screenshot({
@@ -296,9 +305,9 @@ test("PR creator/owner can toggle draft, request reviews, and approve", async ({
   ).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId("project-review-summary")).toHaveCount(0);
   await expect(
-    page
-      .getByTestId("project-reviewer-decision")
-      .filter({ hasText: "Changes requested" }),
+    page.locator(
+      '[data-testid="project-reviewer-decision"][title^="Changes requested by "]',
+    ),
   ).toHaveCount(1);
   const changeRequestEvent = await page.evaluate(() =>
     window.__BUZZ_E2E_SIGNED_EVENTS__
@@ -380,9 +389,9 @@ test("PR creator/owner can toggle draft, request reviews, and approve", async ({
   ).toHaveCount(0);
   await expect(page.getByTestId("project-review-summary")).toHaveCount(0);
   await expect(
-    page
-      .getByTestId("project-reviewer-decision")
-      .filter({ hasText: "Approved by" }),
+    page.locator(
+      '[data-testid="project-reviewer-decision"][title^="Approved by "]',
+    ),
   ).toHaveCount(1);
   const approvalEvent = await page.evaluate(() =>
     window.__BUZZ_E2E_SIGNED_EVENTS__
@@ -1108,6 +1117,14 @@ test("sidebar distinguishes the Projects overview from an open project", async (
   await projectsOverview.click();
   await expect(projectsOverview).toHaveAttribute("data-active", "true");
   await expect(sidebarProject).toHaveAttribute("data-active", "false");
+  await expect(sidebarProject.locator("svg").first()).toHaveCSS(
+    "opacity",
+    "0.8",
+  );
+  await expect(sidebarProject.locator('[data-sidebar="menu-label"]')).toHaveCSS(
+    "opacity",
+    "0.8",
+  );
 
   await sidebarProject.click();
   await expect(projectsOverview).toHaveAttribute("data-active", "true");
@@ -1605,7 +1622,9 @@ test("project overview presents collapsible context beside grouped activity", as
   ).toHaveCount(0);
 });
 
-test("project overview content header toggles agent chat", async ({ page }) => {
+test("project overview chrome toggles a detached resizable agent chat", async ({
+  page,
+}) => {
   await enableProjectsFeature(page);
   await installMockBridge(page);
   await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -1622,25 +1641,36 @@ test("project overview content header toggles agent chat", async ({ page }) => {
     "Chat with an agent about Reviews",
   );
   await expect(overviewChat).toHaveAttribute("aria-pressed", "false");
-  const [contentBox, chatBox] = await Promise.all([
-    page.getByTestId("projects-overview-content-pod").boundingBox(),
+  const overviewInfo = page.getByTestId("projects-overview-context-toggle");
+  const [chatBox, infoBox] = await Promise.all([
     overviewChat.boundingBox(),
+    overviewInfo.boundingBox(),
   ]);
-  expect(contentBox).not.toBeNull();
   expect(chatBox).not.toBeNull();
+  expect(infoBox).not.toBeNull();
   expect(
-    (contentBox?.x ?? 0) +
-      (contentBox?.width ?? 0) -
-      ((chatBox?.x ?? 0) + (chatBox?.width ?? 0)),
-  ).toBeLessThanOrEqual(20);
+    (infoBox?.x ?? 0) - ((chatBox?.x ?? 0) + (chatBox?.width ?? 0)),
+  ).toBeLessThanOrEqual(4);
+  const contextRail = page.getByTestId("projects-overview-context-rail");
+  await expect(overviewInfo).toHaveAttribute("aria-pressed", "true");
+  await overviewInfo.click();
+  await expect(overviewInfo).toHaveAttribute("aria-pressed", "false");
+  await expect(contextRail).toHaveCSS("width", "0px");
   await overviewChat.click();
   await expect(overviewChat).toHaveAttribute("aria-pressed", "true");
+  await expect(overviewInfo).toHaveAttribute("aria-pressed", "false");
+  await expect(contextRail).toHaveCSS("width", "0px");
   await expect(overviewChat).toBeVisible();
+  const chatRail = page.getByTestId("projects-overview-agent-rail");
+  await expect(chatRail.getByTestId("project-agent-chat-panel")).toBeVisible();
   await expect(
     page
       .getByTestId("projects-overview-content-pod")
       .getByTestId("project-agent-chat-panel"),
-  ).toBeVisible();
+  ).toHaveCount(0);
+  await expect(
+    chatRail.getByTestId("projects-overview-agent-rail-panel"),
+  ).toHaveCSS("border-radius", "16px");
   const agentHeader = page.getByTestId("project-agent-context");
   await expect
     .poll(() =>
@@ -1649,11 +1679,46 @@ test("project overview content header toggles agent chat", async ({ page }) => {
       ),
     )
     .not.toBe("none");
-  await expect(page.getByTestId("projects-overview-agent-rail")).toHaveCount(0);
+  await expect(contextRail).toHaveAttribute("aria-hidden", "true");
+  await overviewInfo.click();
+  await expect(overviewInfo).toHaveAttribute("aria-pressed", "true");
+  await expect(contextRail).toHaveAttribute("aria-hidden", "false");
   await expect(
     page.getByTestId("projects-overview-context-panel"),
   ).toBeVisible();
   const chatPanel = page.getByTestId("project-agent-chat-panel");
+  const resizeHandle = chatPanel.getByTestId(
+    "right-auxiliary-pane-resize-handle",
+  );
+  const [initialPanelBox, resizeHandleBox] = await Promise.all([
+    chatPanel.boundingBox(),
+    resizeHandle.boundingBox(),
+  ]);
+  expect(initialPanelBox).not.toBeNull();
+  expect(resizeHandleBox).not.toBeNull();
+  const resizeStartX =
+    (resizeHandleBox?.x ?? 0) + (resizeHandleBox?.width ?? 0) / 2;
+  const resizeStartY =
+    (resizeHandleBox?.y ?? 0) + (resizeHandleBox?.height ?? 0) / 2;
+  await resizeHandle.dispatchEvent("pointerdown", {
+    button: 0,
+    buttons: 1,
+    clientX: resizeStartX,
+    clientY: resizeStartY,
+    pointerId: 1,
+    pointerType: "mouse",
+  });
+  await expect(chatRail).toHaveAttribute("data-resizing", "true");
+  await page.mouse.move(resizeStartX - 32, resizeStartY);
+  await expect
+    .poll(() =>
+      chatPanel.evaluate((element) =>
+        Math.round(element.getBoundingClientRect().width),
+      ),
+    )
+    .toBe(Math.round(initialPanelBox?.width ?? 0) + 32);
+  await page.mouse.up();
+  await expect(chatRail).toHaveAttribute("data-resizing", "false");
   await chatPanel.getByTestId("message-input").fill("Summarize these reviews");
   await chatPanel.getByTestId("message-input").press("Enter");
   const readSentContent = () =>
@@ -1683,6 +1748,7 @@ test("project overview content header toggles agent chat", async ({ page }) => {
   await overviewChat.click();
   await expect(overviewChat).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByTestId("project-agent-chat-panel")).not.toBeVisible();
+  await expect(chatRail).toHaveCSS("width", "0px");
   await expect(
     page.getByTestId("projects-overview-context-panel"),
   ).toBeVisible();

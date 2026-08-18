@@ -118,9 +118,7 @@ export function ProjectsListHeaderBar({
     <div
       className={cn(
         "flex flex-wrap items-center justify-between gap-2 bg-muted/20 px-3 py-1.5",
-        variant === "bar"
-          ? "rounded-xl border border-border/60"
-          : "border-b border-border/60",
+        variant === "bar" ? "rounded-xl" : "border-b border-border/60",
       )}
       data-testid="projects-list-header"
     >

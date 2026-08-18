@@ -131,6 +131,7 @@ export function ProjectEntitySelectControl({
 
 export function ProjectEntityListRow({
   affiliation,
+  affiliationClassName,
   affiliationTestId,
   affiliationTitle,
   beforeDate,
@@ -158,6 +159,7 @@ export function ProjectEntityListRow({
   trailing,
 }: {
   affiliation?: React.ReactNode;
+  affiliationClassName?: string;
   affiliationTestId?: string;
   affiliationTitle?: string;
   beforeDate?: React.ReactNode;
@@ -292,7 +294,10 @@ export function ProjectEntityListRow({
       ) : null}
       {affiliation ? (
         <span
-          className="hidden w-36 shrink-0 truncate text-right text-xs text-muted-foreground/65 md:block"
+          className={cn(
+            "hidden w-36 shrink-0 truncate text-right text-xs text-muted-foreground/65 md:block",
+            affiliationClassName,
+          )}
           data-projects-text-priority="secondary"
           data-testid={affiliationTestId}
           title={
