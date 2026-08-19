@@ -888,7 +888,10 @@ export function ProjectDetailScreen(props: ProjectDetailScreenProps) {
                 className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-none px-4 pb-4"
                 data-testid="project-detail-scroll"
               >
-                <div className="w-full space-y-3">
+                {/* min-h-full + flex chain lets the commit detail's diff pane
+                    grow to the bottom of the scrollport without forcing a
+                    taller page when content already overflows. */}
+                <div className="flex min-h-full w-full flex-col space-y-3">
                   <WorkspaceTabs
                     key={`${project.id}:${repository.id}:${tabsResetKey}`}
                     initialTab={

@@ -1,5 +1,4 @@
 import {
-  BookOpen,
   CircleDot,
   Files as FilesIcon,
   GitCommitHorizontal,
@@ -350,9 +349,7 @@ export function WorkspaceTabs({
     [selectedPullRequestId],
   );
   const sectionHeader =
-    selectedTab === "overview" && readmeFile ? (
-      <ProjectSectionHeader icon={BookOpen} title="README" />
-    ) : selectedTab === "files" && files.length > 0 ? (
+    selectedTab === "files" && files.length > 0 ? (
       <ProjectSectionHeader icon={FilesIcon} title="Files" />
     ) : selectedTab === "activity" && !selectedCommitHash ? (
       <ProjectSectionHeader icon={GitCommitHorizontal} title="Commits" />
@@ -387,7 +384,7 @@ export function WorkspaceTabs({
 
   return (
     <Tabs
-      className="min-w-0 space-y-3"
+      className="flex min-w-0 flex-1 flex-col space-y-3"
       onValueChange={handleTabChange}
       value={selectedTab}
     >
@@ -422,7 +419,7 @@ export function WorkspaceTabs({
       {/* Project content follows the same borderless flow as work-item details.
           Inner panels retain standalone chrome, neutralized here. */}
       <div
-        className="-mx-4 [&_[data-project-detail-panel]]:rounded-none [&_[data-project-detail-panel]]:border-0"
+        className="-mx-4 flex flex-1 flex-col [&_[data-project-detail-panel]]:rounded-none [&_[data-project-detail-panel]]:border-0"
         data-testid="project-workspace-panel"
       >
         {sectionHeader}
@@ -444,7 +441,10 @@ export function WorkspaceTabs({
           />
         </TabsContent>
 
-        <TabsContent className="m-0" value="activity">
+        <TabsContent
+          className="m-0 min-h-0 flex-1 flex-col data-[state=active]:flex"
+          value="activity"
+        >
           {repositoryUnavailableState ??
             (selectedCommitHash ? (
               <ProjectCommitDetailPanel
