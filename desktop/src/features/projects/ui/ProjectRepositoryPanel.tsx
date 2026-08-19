@@ -46,6 +46,7 @@ import {
   PROJECT_DETAIL_PANEL_CLASS,
   PROJECT_DETAIL_PANEL_MESSAGE_CLASS,
 } from "./projectPanelStyles";
+import { ProjectRepositoryLatestCommitRow } from "./ProjectRepositoryLatestCommitRow";
 import {
   type RepoSourceHeaderControls,
   RepoSourceDropdown,
@@ -854,33 +855,13 @@ export function RepositoryFilesPanel({
       <div className="overflow-x-auto px-2 pb-2">
         <table className="w-full border-collapse caption-bottom text-sm">
           <thead>
-            <tr
-              aria-label={
-                latestCommit
-                  ? `Open commit ${latestCommit.shortHash}`
-                  : undefined
-              }
-              className={cn(
-                "bg-muted/20",
-                latestCommit &&
-                  onOpenCommit &&
-                  "cursor-pointer transition-colors hover:bg-muted/35 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-              )}
-              data-testid="project-repository-latest-commit"
-              onClick={
+            <ProjectRepositoryLatestCommitRow
+              commitShortHash={latestCommit?.shortHash}
+              onOpen={
                 latestCommit && onOpenCommit
                   ? () => onOpenCommit(latestCommit.hash)
                   : undefined
               }
-              onKeyDown={
-                latestCommit && onOpenCommit
-                  ? (event) =>
-                      handleRepositoryEntryKeyDown(event, () =>
-                        onOpenCommit(latestCommit.hash),
-                      )
-                  : undefined
-              }
-              tabIndex={latestCommit && onOpenCommit ? 0 : undefined}
             >
               <th className="px-4 py-3 text-left font-normal" colSpan={3}>
                 {latestCommit ? (
@@ -933,7 +914,7 @@ export function RepositoryFilesPanel({
                   </p>
                 )}
               </th>
-            </tr>
+            </ProjectRepositoryLatestCommitRow>
           </thead>
           <tbody>
             {visibleEntries.map((entry) => {
