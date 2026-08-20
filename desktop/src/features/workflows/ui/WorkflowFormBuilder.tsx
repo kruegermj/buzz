@@ -13,6 +13,7 @@ import {
   TRIGGER_TYPES,
   formStateToYaml,
   nextStepId,
+  withTriggerType,
   yamlToFormState,
 } from "./workflowFormTypes";
 import type {
@@ -296,10 +297,9 @@ export function WorkflowFormBuilder({
                 disabled={disabled}
                 id="wf-trigger-type"
                 onChange={(value) =>
-                  updateFormState({
-                    ...formState,
-                    trigger: { on: value as TriggerType },
-                  })
+                  updateFormState(
+                    withTriggerType(formState, value as TriggerType),
+                  )
                 }
                 value={formState.trigger.on}
               >

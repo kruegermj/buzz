@@ -5,7 +5,11 @@ import { Checkbox } from "@/shared/ui/checkbox";
 import { Input } from "@/shared/ui/input";
 import { Textarea } from "@/shared/ui/textarea";
 import { FieldLabel, FormSelect } from "./workflowFormPrimitives";
-import { ACTION_LABELS, ACTION_TYPES } from "./workflowFormTypes";
+import {
+  ACTION_LABELS,
+  ACTION_TYPES,
+  isThreadReplyEligibleTrigger,
+} from "./workflowFormTypes";
 import { WorkflowWebhookHeadersEditor } from "./WorkflowWebhookHeadersEditor";
 import type {
   ActionType,
@@ -113,7 +117,7 @@ function StepConfigFields({
               </p>
             ) : null}
           </div>
-          {triggerType !== "webhook" && triggerType !== "schedule" ? (
+          {isThreadReplyEligibleTrigger(triggerType) ? (
             <div className="flex items-center gap-2">
               <Checkbox
                 checked={step.replyInThread === true}

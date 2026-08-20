@@ -14,14 +14,14 @@ use buzz_sdk::mentions::{
 
 /// Extract the thread root event ID from a Nostr tag array.
 ///
-/// Delegates marker parsing to [`buzz_core::nip10`] (shared with relay ingest
-/// and ACP) so id-validity and marker selection cannot drift:
-/// - If a `root` marker exists, returns that event ID.
-/// - Otherwise, if only a `reply` marker exists, returns the reply target
-///   (a direct reply's parent IS the root, and nested replies need that root
-///   to thread correctly).
-/// - If no valid thread markers exist, returns `None` (parent is a top-level
-///   message, so it is itself the root).
+/// Delegates marker parsing and collapse to [`buzz_core::nip10`] (shared with
+/// relay ingest and ACP) so id-validity, marker selection, and top-level
+/// classification cannot drift:
+/// - A `root`+`reply` parent returns its root event ID.
+/// - A `reply`-only parent returns the reply target (a direct reply's parent IS
+///   the root).
+/// - A root-only or marker-less parent returns `None` (it is top-level and its
+///   own root).
 fn find_root_from_tags(tags: &serde_json::Value) -> Option<String> {
     let parts: Vec<Vec<String>> = tags
         .as_array()?
@@ -34,9 +34,25 @@ fn find_root_from_tags(tags: &serde_json::Value) -> Option<String> {
             })
         })
         .collect();
-    let markers =
-        buzz_core::nip10::parse_thread_markers_from_parts(parts.iter().map(Vec::as_slice));
-    markers.root.or(markers.reply)
+    buzz_core::nip10::parse_thread_markers_from_parts(parts.iter().map(Vec::as_slice))
+        .resolve()
+        .map(|(root, _)| root)
+}
+
+fn thread_ref_from_parent_tags(
+    parent_eid: nostr::EventId,
+    parent_event_id: &str,
+    tags: &serde_json::Value,
+) -> Result<ThreadRef, CliError> {
+    let root_eid = match find_root_from_tags(tags) {
+        Some(root_hex) if root_hex != parent_event_id => parse_event_id(&root_hex)?,
+        _ => parent_eid,
+    };
+
+    Ok(ThreadRef {
+        root_event_id: root_eid,
+        parent_event_id: parent_eid,
+    })
 }
 
 /// Build a `ThreadRef` for a reply, given the immediate parent's event ID.
@@ -65,15 +81,7 @@ async fn resolve_thread_ref(
         .cloned()
         .unwrap_or(serde_json::Value::Null);
 
-    let root_eid = match find_root_from_tags(&tags) {
-        Some(root_hex) if root_hex != parent_event_id => parse_event_id(&root_hex)?,
-        _ => parent_eid,
-    };
-
-    Ok(ThreadRef {
-        root_event_id: root_eid,
-        parent_event_id: parent_eid,
-    })
+    thread_ref_from_parent_tags(parent_eid, parent_event_id, &tags)
 }
 
 /// Resolve the channel UUID for an event by querying for it via POST /query.
@@ -988,7 +996,7 @@ mod tests {
     use super::{
         event_mention_pubkeys, find_root_from_tags, match_profiles_by_name, merge_message_mentions,
         missing_members, normalize_explicit_mentions, parse_member_pubkeys,
-        resolve_names_to_pubkeys,
+        resolve_names_to_pubkeys, thread_ref_from_parent_tags,
     };
     use buzz_sdk::mentions::{
         extract_at_mentions_with_known, extract_at_names, match_names_to_profiles, MentionProfile,
@@ -1016,6 +1024,23 @@ mod tests {
     }
 
     #[test]
+    fn root_marker_without_reply_is_top_level() {
+        let tags = json!([["e", ID_A, "", "root"], ["p", PUBKEY],]);
+        assert!(find_root_from_tags(&tags).is_none());
+    }
+
+    #[test]
+    fn root_only_parent_starts_cli_reply_thread_at_parent() {
+        let tags = json!([["e", ID_A, "", "root"]]);
+        let parent = nostr::EventId::from_hex(ID_B).expect("valid parent id");
+
+        let thread_ref = thread_ref_from_parent_tags(parent, ID_B, &tags).expect("thread ref");
+
+        assert_eq!(thread_ref.parent_event_id, parent);
+        assert_eq!(thread_ref.root_event_id, parent);
+    }
+
+    #[test]
     fn reply_only_falls_back_to_reply_target() {
         // Direct reply to a top-level message — the parent's only e-tag is a
         // "reply" marker pointing at it; treat the reply target as the root.
@@ -1038,14 +1063,16 @@ mod tests {
     }
 
     #[test]
-    fn malformed_tags_are_skipped() {
+    fn malformed_tags_are_skipped_and_root_only_is_top_level() {
+        // Invalid entries are ignored, leaving a valid root-only marker; the
+        // shared collapse rule still classifies that parent as top-level.
         let tags = json!([
             "not-an-array",
             ["e"],
             ["e", "short"],
             ["e", ID_A, "", "root"],
         ]);
-        assert_eq!(find_root_from_tags(&tags).as_deref(), Some(ID_A));
+        assert!(find_root_from_tags(&tags).is_none());
     }
 
     #[test]
