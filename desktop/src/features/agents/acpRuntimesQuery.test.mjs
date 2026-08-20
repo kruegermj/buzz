@@ -489,3 +489,245 @@ describe("useAcpRuntimesQueryForced force-on-mount ownership", () => {
     });
   });
 });
+
+// ── P1 regression: readiness gate correctness (SetupStep) ────────────────────
+//
+// useSetupStepState maps `isFetching` → `isChecking` and `isError` →
+// `errorMessage`. The fix changed `isChecking` from `isLoading` (which is
+// false when cached data exists) to `isFetching` (which is true while any
+// forced probe is in flight regardless of cache). These two tests hold forced
+// probes pending/rejected over cached data and assert the hook produces the
+// expected state.
+
+describe("useAcpRuntimesQueryForced readiness gate with cached data (SetupStep P1 regression)", () => {
+  it("isFetching is true while forced probe is pending over cached data", async () => {
+    const queryClient = makeQueryClient();
+    // Pre-seed the shared cache so there IS cached data (simulates a prior
+    // successful discovery, e.g. from a cheap or previous forced probe).
+    queryClient.setQueryData(acpRuntimesQueryKey, [
+      rawEntry("codex", "logged_in"),
+    ]);
+
+    // Hold the forced probe pending indefinitely.
+    const pending = deferred();
+    discoverHandler = (args) =>
+      args?.force === true ? pending.promise : Promise.resolve([]);
+
+    let latest = null;
+    function Consumer() {
+      latest = useAcpRuntimesQueryForced();
+      return null;
+    }
+
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        React.createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          React.createElement(Consumer),
+        ),
+      );
+    });
+    // Allow the mount-time forceRefresh to dispatch (but not resolve).
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    assert.equal(
+      latest?.isFetching,
+      true,
+      "isFetching must be true while forced probe is in flight, even with cached data",
+    );
+    assert.notEqual(
+      latest?.data,
+      undefined,
+      "cached data must remain accessible while forced probe is pending",
+    );
+    assert.equal(
+      latest?.isError,
+      false,
+      "isError must be false while probe is still in flight",
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+    pending.resolve([]);
+  });
+
+  it("isError is true and data is preserved after forced probe rejects over cached data", async () => {
+    const queryClient = makeQueryClient();
+    // Pre-seed the shared cache with a prior good catalog.
+    queryClient.setQueryData(acpRuntimesQueryKey, [
+      rawEntry("codex", "logged_in"),
+    ]);
+
+    discoverHandler = (args) =>
+      args?.force === true
+        ? Promise.reject(new Error("forced probe rejected"))
+        : Promise.resolve([]);
+
+    let latest = null;
+    function Consumer() {
+      latest = useAcpRuntimesQueryForced();
+      return null;
+    }
+
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        React.createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          React.createElement(Consumer),
+        ),
+      );
+    });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    assert.equal(
+      latest?.isError,
+      true,
+      "isError must be true after forced probe rejects even when cached data exists",
+    );
+    assert.equal(
+      latest?.error instanceof Error && latest.error.message,
+      "forced probe rejected",
+      "error must carry the rejection reason",
+    );
+    assert.notEqual(
+      latest?.data,
+      undefined,
+      "cached data must be preserved in the shared cache after a forced rejection",
+    );
+    assert.equal(
+      latest?.isFetching,
+      false,
+      "isFetching must be false after the probe settled",
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+});
+
+// ── P2 regression: HarnessCatalogDialog rendering gate states ───────────────
+//
+// HarnessCatalogDialog computes `isColdError` (isError && data===undefined)
+// and `isRefreshing` (isFetching && !isLoading) to drive distinct list states.
+// These tests assert the hook produces the right field combinations for each
+// case so the dialog's conditional rendering makes the correct branch.
+
+describe("useAcpRuntimesQueryForced state combinations for HarnessCatalogDialog (P2 regression)", () => {
+  it("cold rejection: isError true, data undefined (error state branch)", async () => {
+    const queryClient = makeQueryClient();
+    discoverHandler = (args) =>
+      args?.force === true
+        ? Promise.reject(new Error("cold failure"))
+        : Promise.resolve([]);
+
+    let latest = null;
+    function Consumer() {
+      latest = useAcpRuntimesQueryForced();
+      return null;
+    }
+
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        React.createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          React.createElement(Consumer),
+        ),
+      );
+    });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    assert.equal(latest?.isError, true, "cold rejection: isError must be true");
+    assert.equal(
+      latest?.data,
+      undefined,
+      "cold rejection: data must be undefined (no cache to fall back on)",
+    );
+    // isColdError = isError && data === undefined — true here; dialog renders error state.
+    assert.equal(
+      latest?.isError && latest?.data === undefined,
+      true,
+      "isColdError condition must hold on cold rejection",
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("cached data + forced probe pending: isFetching true, data defined (refresh branch)", async () => {
+    const queryClient = makeQueryClient();
+    queryClient.setQueryData(acpRuntimesQueryKey, [
+      rawEntry("claude", "logged_in"),
+    ]);
+
+    const pending = deferred();
+    discoverHandler = (args) =>
+      args?.force === true ? pending.promise : Promise.resolve([]);
+
+    let latest = null;
+    function Consumer() {
+      latest = useAcpRuntimesQueryForced();
+      return null;
+    }
+
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        React.createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          React.createElement(Consumer),
+        ),
+      );
+    });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    assert.equal(
+      latest?.isFetching,
+      true,
+      "cached + pending: isFetching must be true",
+    );
+    assert.notEqual(
+      latest?.data,
+      undefined,
+      "cached + pending: data must be defined (showing stale catalog is fine)",
+    );
+    // isRefreshing = isFetching && !isLoading; isLoading = isFetching && data===undefined.
+    // With data present, isLoading is false; so isRefreshing is true — dialog shows refresh indicator.
+    assert.equal(
+      latest?.isLoading,
+      false,
+      "cached + pending: isLoading must be false (data exists)",
+    );
+    assert.equal(
+      latest?.isFetching && !latest?.isLoading,
+      true,
+      "isRefreshing condition must hold: isFetching true, isLoading false",
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+    pending.resolve([]);
+  });
+});
